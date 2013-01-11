@@ -1,4 +1,4 @@
-;;; full-ack.el --- a front-end for ack
+;;; full-ag.el --- a front-end for ag
 ;;; -*- lexical-binding: t -*-
 ;;
 ;; Copyright (C) 2009-2011 Nikolaj Schumacher
@@ -6,7 +6,7 @@
 ;; Author: Nikolaj Schumacher <bugs * nschum de>
 ;; Version: 0.2.3
 ;; Keywords: tools, matching
-;; URL: http://nschum.de/src/emacs/full-ack/
+;; URL: http://nschum.de/src/emacs/full-ag/
 ;; Compatibility: GNU Emacs 22.x, GNU Emacs 23.x, GNU Emacs 24.x
 ;;
 ;; This file is NOT part of GNU Emacs.
@@ -26,45 +26,45 @@
 ;;
 ;;; Commentary:
 ;;
-;; ack is a tool like grep, aimed at programmers with large trees of
+;; ag is a tool like grep, aimed at programmers with large trees of
 ;; heterogeneous source code.
 ;; It is available at <http://betterthangrep.com/>.
 ;;
 ;; Add the following to your .emacs:
 ;;
-;; (add-to-list 'load-path "/path/to/full-ack")
-;; (autoload 'ack-same "full-ack" nil t)
-;; (autoload 'ack "full-ack" nil t)
-;; (autoload 'ack-find-same-file "full-ack" nil t)
-;; (autoload 'ack-find-file "full-ack" nil t)
+;; (add-to-list 'load-path "/path/to/full-ag")
+;; (autoload 'ag-same "full-ag" nil t)
+;; (autoload 'ag "full-ag" nil t)
+;; (autoload 'ag-find-same-file "full-ag" nil t)
+;; (autoload 'ag-find-file "full-ag" nil t)
 ;;
-;; Run `ack' to search for all files and `ack-same' to search for files of the
+;; Run `ag' to search for all files and `ag-same' to search for files of the
 ;; same type as the current buffer.
 ;;
 ;; `next-error' and `previous-error' can be used to jump to the matches.
 ;;
-;; `ack-find-file' and `ack-find-same-file' use ack to list the files in the
+;; `ag-find-file' and `ag-find-same-file' use ag to list the files in the
 ;; current project.  It's a convenient, though slow, way of finding files.
 ;;
 ;;; Change Log:
 ;;
-;;    Added `ack-next-file` and `ack-previous-file`.
+;;    Added `ag-next-file` and `ag-previous-file`.
 ;;
 ;; 2011-12-16 (0.2.3)
-;;    Added `ack-again' (bound to "g" in search buffers).
+;;    Added `ag-again' (bound to "g" in search buffers).
 ;;    Added default value for search.
 ;;
 ;; 2010-11-17 (0.2.2)
-;;    Made changes for ack 1.92.
-;;    Made `ack-guess-project-root' Windows friendly.
+;;    Made changes for ag 1.92.
+;;    Made `ag-guess-project-root' Windows friendly.
 ;;
 ;; 2009-04-13 (0.2.1)
-;;    Added `ack-next-match' and `ack-previous-match'.
+;;    Added `ag-next-match' and `ag-previous-match'.
 ;;    Fixed mouse clicking and let it move next-error position.
 ;;
 ;; 2009-04-06 (0.2)
-;;    Added 'unless-guessed value for `ack-prompt-for-directory'.
-;;    Added `ack-list-files', `ack-find-file' and `ack-find-same-file'.
+;;    Added 'unless-guessed value for `ag-prompt-for-directory'.
+;;    Added `ag-list-files', `ag-find-file' and `ag-find-same-file'.
 ;;    Fixed regexp toggling.
 ;;
 ;; 2009-04-05 (0.1)
@@ -79,138 +79,138 @@
              "^Moved \\(back before fir\\|past la\\)st match$")
 (add-to-list 'debug-ignored-errors "^File .* not found$")
 
-(defgroup full-ack nil
-  "A front-end for ack."
+(defgroup full-ag nil
+  "A front-end for ag."
   :group 'tools
   :group 'matching)
 
-(defcustom ack-executable (executable-find "ack")
-  "*The location of the ack executable."
-  :group 'full-ack
+(defcustom ag-executable (executable-find "ag")
+  "*The location of the ag executable."
+  :group 'full-ag
   :type 'file)
 
-(defcustom ack-arguments nil
-  "*The arguments to use when running ack."
-  :group 'full-ack
+(defcustom ag-arguments nil
+  "*The arguments to use when running ag."
+  :group 'full-ag
   :type '(repeat (string)))
 
-(defcustom ack-mode-type-alist nil
+(defcustom ag-mode-type-alist nil
   "*Matches major modes to searched file types.
-This overrides values in `ack-mode-default-type-alist'.  The car in each
+This overrides values in `ag-mode-default-type-alist'.  The car in each
 list element is a major mode, the rest are strings representing values of
-the --type argument used by `ack-same'."
-  :group 'full-ack
+the --type argument used by `ag-same'."
+  :group 'full-ag
   :type '(repeat (cons (symbol :tag "Major mode")
-                       (repeat (string :tag "ack type")))))
+                       (repeat (string :tag "ag type")))))
 
-(defcustom ack-mode-extension-alist nil
+(defcustom ag-mode-extension-alist nil
   "*Matches major modes to searched file extensions.
-This overrides values in `ack-mode-default-extension-alist'.  The car in
+This overrides values in `ag-mode-default-extension-alist'.  The car in
 each list element is a major mode, the rest is a list of file extensions
 that that should be searched in addition to the type defined in
-`ack-mode-type-alist' by `ack-same'."
-  :group 'full-ack
+`ag-mode-type-alist' by `ag-same'."
+  :group 'full-ag
   :type '(repeat (cons (symbol :tag "Major mode")
                        (repeat :tag "File extensions"
                                (string :tag "extension")))))
 
-(defcustom ack-ignore-case 'smart
-  "*Determines whether `ack' ignores the search case.
-Special value 'smart enables ack option \"smart-case\"."
-  :group 'full-ackk
+(defcustom ag-ignore-case 'smart
+  "*Determines whether `ag' ignores the search case.
+Special value 'smart enables ag option \"smart-case\"."
+  :group 'full-ag
   :type '(choice (const :tag "Case sensitive" nil)
                  (const :tag "Smart" 'smart)
                  (const :tag "Ignore case" t)))
 
-(defcustom ack-search-regexp t
-  "*Determines whether `ack' should default to regular expression search.
-Giving a prefix arg to `ack' toggles this option."
-  :group 'full-ack
+(defcustom ag-search-regexp t
+  "*Determines whether `ag' should default to regular expression search.
+Giving a prefix arg to `ag' toggles this option."
+  :group 'full-ag
   :type '(choice (const :tag "Literal" nil)
                  (const :tag "Regular expression" t)))
 
-(defcustom ack-display-buffer t
-  "*Determines whether `ack' should display the result buffer.
+(defcustom ag-display-buffer t
+  "*Determines whether `ag' should display the result buffer.
 Special value 'after means display the buffer only after a successful search."
-  :group 'full-ack
+  :group 'full-ag
   :type '(choice (const :tag "Don't display" nil)
                  (const :tag "Display immediately" t)
                  (const :tag "Display when done" 'after)))
 
-(defcustom ack-context 2
-  "*The number of context lines for `ack'"
-  :group 'full-ack
+(defcustom ag-context 2
+  "*The number of context lines for `ag'"
+  :group 'full-ag
   :type 'integer)
 
-(defcustom ack-heading t
-  "*Determines whether `ack' results should be grouped by file."
-  :group 'full-ack
+(defcustom ag-heading t
+  "*Determines whether `ag' results should be grouped by file."
+  :group 'full-ag
   :type '(choice (const :tag "No heading" nil)
                  (const :tag "Heading" t)))
 
-(defcustom ack-use-environment t
-  "*Determines whether `ack' should use access .ackrc and ACK_OPTIONS."
-  :group 'full-ack
+(defcustom ag-use-environment t
+  "*Determines whether `ag' should use access .agrc and AG_OPTIONS."
+  :group 'full-ag
   :type '(choice (const :tag "Ignore environment" nil)
                  (const :tag "Use environment" t)))
 
-(defcustom ack-root-directory-functions '(ack-guess-project-root)
-  "*A list of functions used to find the ack base directory.
+(defcustom ag-root-directory-functions '(ag-guess-project-root)
+  "*A list of functions used to find the ag base directory.
 These functions are called until one returns a directory.  If successful,
-`ack' is run from that directory instead of `default-directory'.  The
-directory is verified by the user depending on `ack-promtp-for-directory'."
-  :group 'full-ack
+`ag' is run from that directory instead of `default-directory'.  The
+directory is verified by the user depending on `ag-promtp-for-directory'."
+  :group 'full-ag
   :type '(repeat function))
 
-(defcustom ack-project-root-file-patterns
+(defcustom ag-project-root-file-patterns
   '(".project\\'" ".xcodeproj\\'" ".sln\\'" "\\`Project.ede\\'"
     "\\`.git\\'" "\\`.bzr\\'" "\\`_darcs\\'" "\\`.hg\\'")
-  "A list of project file patterns for `ack-guess-project-root'.
+  "A list of project file patterns for `ag-guess-project-root'.
 Each element is a regular expression.  If a file matching either element is
 found in a directory, that directory is assumed to be the project root by
-`ack-guess-project-root'."
-  :group 'full-ack
+`ag-guess-project-root'."
+  :group 'full-ag
   :type '(repeat (string :tag "Regular expression")))
 
-(defcustom ack-prompt-for-directory nil
-  "*Determines whether `ack' asks the user for the root directory.
+(defcustom ag-prompt-for-directory nil
+  "*Determines whether `ag' asks the user for the root directory.
 If this is 'unless-guessed, the value determined by
-`ack-root-directory-functions' is used without confirmation.  If it is
+`ag-root-directory-functions' is used without confirmation.  If it is
 nil, the directory is never confirmed."
-  :group 'full-ack
+  :group 'full-ag
   :type '(choice (const :tag "Don't prompt" nil)
                  (const :tag "Don't Prompt when guessed " unless-guessed)
                  (const :tag "Prompt" t)))
 
 ;;; faces ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(defface ack-separator
+(defface ag-separator
   '((default (:foreground "gray50")))
-  "*Face for the group separator \"--\" in `ack' output."
-  :group 'full-ack)
+  "*Face for the group separator \"--\" in `ag' output."
+  :group 'full-ag)
 
-(defface ack-file
+(defface ag-file
   '((((background dark)) (:foreground "green1"))
     (((background light)) (:foreground "green4")))
-  "*Face for file names in `ack' output."
-  :group 'full-ack)
+  "*Face for file names in `ag' output."
+  :group 'full-ag)
 
-(defface ack-line
+(defface ag-line
   '((((background dark)) (:foreground "LightGoldenrod"))
     (((background dark)) (:foreground "DarkGoldenrod")))
-  "*Face for line numbers in `ack' output."
-  :group 'full-ack)
+  "*Face for line numbers in `ag' output."
+  :group 'full-ag)
 
-(defface ack-match
+(defface ag-match
   '((default (:foreground "black"))
     (((background dark)) (:background "yellow"))
     (((background light)) (:background "yellow")))
-  "*Face for matched text in `ack' output."
-  :group 'full-ack)
+  "*Face for matched text in `ag' output."
+  :group 'full-ag)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(defconst ack-mode-default-type-alist
+(defconst ag-mode-default-type-alist
   ;; Some of these names are guessed.  More should be constantly added.
   '((actionscript-mode "actionscript")
     (LaTeX-mode "tex")
@@ -262,23 +262,23 @@ nil, the directory is never confirmed."
     (vim-mode "vim")
     (xml-mode "xml")
     (yaml-mode "yaml"))
-  "Default values for `ack-mode-type-alist', which see.")
+  "Default values for `ag-mode-type-alist', which see.")
 
-(defconst ack-mode-default-extension-alist
+(defconst ag-mode-default-extension-alist
   '((d-mode "d"))
-  "Default values for `ack-mode-extension-alist', which see.")
+  "Default values for `ag-mode-extension-alist', which see.")
 
-(defun ack-create-type (extensions)
+(defun ag-create-type (extensions)
   (list "--type-set"
-        (concat "full-ack-custom-type=" (mapconcat 'identity extensions ","))
-        "--type" "full-ack-custom-type"))
+        (concat "full-ag-custom-type=" (mapconcat 'identity extensions ","))
+        "--type" "full-ag-custom-type"))
 
-(defun ack-type-for-major-mode (mode)
+(defun ag-type-for-major-mode (mode)
   "Return the --type and --type-set arguments for major mode MODE."
-  (let ((types (cdr (or (assoc mode ack-mode-type-alist)
-                        (assoc mode ack-mode-default-type-alist))))
-        (ext (cdr (or (assoc mode ack-mode-extension-alist)
-                      (assoc mode ack-mode-default-extension-alist))))
+  (let ((types (cdr (or (assoc mode ag-mode-type-alist)
+                        (assoc mode ag-mode-default-type-alist))))
+        (ext (cdr (or (assoc mode ag-mode-extension-alist)
+                      (assoc mode ag-mode-default-extension-alist))))
         result)
     (dolist (type types)
       (push type result)
@@ -288,20 +288,20 @@ nil, the directory is never confirmed."
             `("--type-add" ,(concat (car types)
                                     "=" (mapconcat 'identity ext ","))
               . ,result)
-          (ack-create-type ext))
+          (ag-create-type ext))
       result)))
 
 ;;; root ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(defun ack-guess-project-root ()
+(defun ag-guess-project-root ()
   "A function to guess the project root directory.
-This can be used in `ack-root-directory-functions'."
+This can be used in `ag-root-directory-functions'."
   (catch 'root
     (let ((dir (expand-file-name (if buffer-file-name
                                      (file-name-directory buffer-file-name)
                                    default-directory)))
           (prev-dir nil)
-          (pattern (mapconcat 'identity ack-project-root-file-patterns "\\|")))
+          (pattern (mapconcat 'identity ag-project-root-file-patterns "\\|")))
       (while (not (equal dir prev-dir))
         (when (directory-files dir nil pattern t)
           (throw 'root dir))
@@ -310,33 +310,34 @@ This can be used in `ack-root-directory-functions'."
 
 ;;; process ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(defvar ack-buffer-name "*ack*")
-(defvar ack-process nil)
+(defvar ag-buffer-name "*ag*")
+(defvar ag-process nil)
 
-(defvar ack-buffer--rerun-args nil)
+(defvar ag-buffer--rerun-args nil)
 
-(defun ack-count-matches ()
-  "Count the matches printed by `ack' in the current buffer."
+(defun ag-count-matches ()
+  "Count the matches printed by `ag' in the current buffer."
   (let ((c 0)
         (beg (point-min)))
-    (setq beg (next-single-char-property-change beg 'ack-match))
+    (setq beg (next-single-char-property-change beg 'ag-match))
     (while (< beg (point-max))
-      (when (get-text-property beg 'ack-match)
+      (when (get-text-property beg 'ag-match)
         (incf c))
-      (setq beg (next-single-char-property-change beg 'ack-match)))
+      (setq beg (next-single-char-property-change beg 'ag-match)))
     c))
 
-(defun ack-sentinel (proc result)
+(defun ag-sentinel (proc result)
   (when (eq (process-status proc) 'exit)
     (with-current-buffer (process-buffer proc)
-      (let ((c (ack-count-matches)))
+      (let ((c (ag-count-matches)))
         (if (> c 0)
-            (when (eq ack-display-buffer 'after)
+            (when (eq ag-display-buffer 'after)
               (display-buffer (current-buffer)))
-          (kill-buffer (current-buffer)))
-        (message "Ack finished with %d match%s" c (if (eq c 1) "" "es"))))))
+;;          (kill-buffer (current-buffer))
+          )
+        (message "Ag finished with %d match%s" c (if (eq c 1) "" "es"))))))
 
-(defun ack-filter (proc output)
+(defun ag-filter (proc output)
   (let ((buffer (process-buffer proc))
         (inhibit-read-only t)
         beg)
@@ -347,73 +348,73 @@ This can be used in `ack-root-directory-functions'."
           (insert output)
           ;; Error properties are done by font-lock.
           (font-lock-fontify-region beg (point-max))))
-      (ack-abort))))
+      (ag-abort))))
 
-(defun ack-abort ()
-  "Abort the running `ack' process."
+(defun ag-abort ()
+  "Abort the running `ag' process."
   (interactive)
-  (when (processp ack-process)
-    (delete-process ack-process)))
+  (when (processp ag-process)
+    (delete-process ag-process)))
 
-(defun ack-option (name enabled)
+(defun ag-option (name enabled)
   (format "--%s%s" (if enabled "" "no") name))
 
-(defun ack-arguments-from-options (regexp)
+(defun ag-arguments-from-options (regexp)
   (let ((arguments (list "--color"
-                         (ack-option "smart-case" (eq ack-ignore-case 'smart))
-                         (ack-option "heading" ack-heading)
-                         (ack-option "env" ack-use-environment))))
-    (unless ack-ignore-case
+                         (ag-option "smart-case" (eq ag-ignore-case 'smart))
+                         (ag-option "heading" ag-heading))))
+    (unless ag-ignore-case
       (push "-i" arguments))
     (unless regexp
       (push "--literal" arguments))
-    (when (and ack-context (/= ack-context 0))
-      (push (format "--context=%d" ack-context) arguments))
+    (when (and ag-context (/= ag-context 0))
+      (push (format "--context=%d" ag-context) arguments))
     arguments))
 
-(defun ack-run (directory regexp &rest arguments)
-  "Run ack in DIRECTORY with ARGUMENTS."
-  (ack-abort)
+(defun ag-run (directory regexp &rest arguments)
+  "Run ag in DIRECTORY with ARGUMENTS."
+  (ag-abort)
   (setq directory
         (if directory
             (file-name-as-directory (expand-file-name directory))
           default-directory))
-  (setq arguments (append ack-arguments
-                          (nconc (ack-arguments-from-options regexp)
+  (setq arguments (append ag-arguments
+                          (nconc (ag-arguments-from-options regexp)
                                  arguments)))
-  (let ((buffer (get-buffer-create ack-buffer-name))
+  ;(message arguments)
+  (let ((buffer (get-buffer-create ag-buffer-name))
         (inhibit-read-only t)
         (default-directory directory)
         (rerun-args (cons directory (cons regexp arguments))))
     (setq next-error-last-buffer buffer
-          ack-buffer--rerun-args rerun-args)
+          ag-buffer--rerun-args rerun-args)
     (with-current-buffer buffer
       (erase-buffer)
-      (ack-mode)
+      (ag-mode)
       (setq buffer-read-only t
             default-directory directory)
-      (set (make-local-variable 'ack-buffer--rerun-args) rerun-args)
+      (set (make-local-variable 'ag-buffer--rerun-args) rerun-args)
       (font-lock-fontify-buffer)
-      (when (eq ack-display-buffer t)
+      (when (eq ag-display-buffer t)
         (display-buffer (current-buffer))))
-    (setq ack-process
-          (apply 'start-process "ack" buffer ack-executable arguments))
-    (set-process-sentinel ack-process 'ack-sentinel)
-    (set-process-query-on-exit-flag ack-process nil)
-    (set-process-filter ack-process 'ack-filter)))
+    (setq ag-process
+          (apply 'start-process "ag" buffer ag-executable arguments))
+    (set-process-sentinel ag-process 'ag-sentinel)
+    (set-process-query-on-exit-flag ag-process nil)
+    (set-process-filter ag-process 'ag-filter)))
 
-(defun ack-version-string ()
-  "Return the ack version string."
+(defun ag-version-string ()
+  "Return the ag version string."
   (with-temp-buffer
-    (call-process ack-executable nil t nil "--version")
+    (call-process ag-executable nil t nil "--version")
     (goto-char (point-min))
     (re-search-forward " +")
     (buffer-substring (point) (point-at-eol))))
 
-(defun ack-list-files (directory &rest arguments)
+(defun ag-list-files (directory &rest arguments)
   (with-temp-buffer
     (let ((default-directory directory))
-      (when (eq 0 (apply 'call-process ack-executable nil t nil "-f" "--print0"
+      (when (eq 0 (apply 'call-process ag-executable nil t nil "-f" "--print0"
                          arguments))
         (goto-char (point-min))
         (let ((beg (point-min))
@@ -425,93 +426,93 @@ This can be used in `ack-root-directory-functions'."
 
 ;;; commands ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(defvar ack-directory-history nil
-  "Directories recently searched with `ack'.")
-(defvar ack-literal-history nil
-  "Strings recently searched for with `ack'.")
-(defvar ack-regexp-history nil
-  "Regular expressions recently searched for with `ack'.")
+(defvar ag-directory-history nil
+  "Directories recently searched with `ag'.")
+(defvar ag-literal-history nil
+  "Strings recently searched for with `ag'.")
+(defvar ag-regexp-history nil
+  "Regular expressions recently searched for with `ag'.")
 
-(defun ack--read (regexp)
-  (let ((default (ack--default-for-read))
+(defun ag--read (regexp)
+  (let ((default (ag--default-for-read))
         (type (if regexp "pattern" "literal"))
-        (history-var (if regexp 'ack-regexp-history 'ack-literal-history)))
+        (history-var (if regexp 'ag-regexp-history 'ag-literal-history)))
     (read-string (if default
-                     (format "ack %s search (default %s): " type default)
-                   (format "ack %s search: " type))
-                 (ack--initial-contents-for-read)
+                     (format "ag %s search (default %s): " type default)
+                   (format "ag %s search: " type))
+                 (ag--initial-contents-for-read)
                  history-var
                  default)))
 
-(defun ack--initial-contents-for-read ()
-  (when (ack--use-region-p)
+(defun ag--initial-contents-for-read ()
+  (when (ag--use-region-p)
     (buffer-substring-no-properties (region-beginning) (region-end))))
 
-(defun ack--default-for-read ()
-  (unless (ack--use-region-p)
+(defun ag--default-for-read ()
+  (unless (ag--use-region-p)
     (thing-at-point 'symbol)))
 
-(defun ack--use-region-p ()
+(defun ag--use-region-p ()
   (or (and (fboundp 'use-region-p) (use-region-p))
       (and transient-mark-mode mark-active
            (> (region-end) (region-beginning)))))
 
-(defun ack-read-dir ()
-  (let ((dir (run-hook-with-args-until-success 'ack-root-directory-functions)))
-    (if ack-prompt-for-directory
-        (if (and dir (eq ack-prompt-for-directory 'unless-guessed))
+(defun ag-read-dir ()
+  (let ((dir (run-hook-with-args-until-success 'ag-root-directory-functions)))
+    (if ag-prompt-for-directory
+        (if (and dir (eq ag-prompt-for-directory 'unless-guessed))
             dir
           (read-directory-name "Directory: " dir dir t))
       (or dir
           (and buffer-file-name (file-name-directory buffer-file-name))
           default-directory))))
 
-(defun ack-xor (a b)
+(defun ag-xor (a b)
   (if a (not b) b))
 
-(defun ack-interactive ()
-  "Return the (interactive) arguments for `ack' and `ack-same'"
-  (let ((regexp (ack-xor current-prefix-arg ack-search-regexp)))
-    (list (ack--read regexp)
+(defun ag-interactive ()
+  "Return the (interactive) arguments for `ag' and `ag-same'"
+  (let ((regexp (ag-xor current-prefix-arg ag-search-regexp)))
+    (list (ag--read regexp)
           regexp
-          (ack-read-dir))))
+          (ag-read-dir))))
 
-(defun ack-type ()
-  (or (ack-type-for-major-mode major-mode)
+(defun ag-type ()
+  (or (ag-type-for-major-mode major-mode)
       (when buffer-file-name
-        (ack-create-type (list (file-name-extension buffer-file-name))))))
+        (ag-create-type (list (file-name-extension buffer-file-name))))))
 
 ;;;###autoload
-(defun ack-same (pattern &optional regexp directory)
-  "Run ack with --type matching the current `major-mode'.
-The types of files searched are determined by `ack-mode-type-alist' and
-`ack-mode-extension-alist'.  If no type is configured the buffer's file
+(defun ag-same (pattern &optional regexp directory)
+  "Run ag with --type matching the current `major-mode'.
+The types of files searched are determined by `ag-mode-type-alist' and
+`ag-mode-extension-alist'.  If no type is configured the buffer's file
 extension is used for the search.
 PATTERN is interpreted as a regular expression, iff REGEXP is non-nil.  If
-called interactively, the value of REGEXP is determined by `ack-search-regexp'.
+called interactively, the value of REGEXP is determined by `ag-search-regexp'.
 A prefix arg toggles that value.
 DIRECTORY is the root directory.  If called interactively, it is determined by
-`ack-project-root-file-patterns'.  The user is only prompted, if
-`ack-prompt-for-directory' is set."
-  (interactive (ack-interactive))
-  (let ((type (ack-type)))
+`ag-project-root-file-patterns'.  The user is only prompted, if
+`ag-prompt-for-directory' is set."
+  (interactive (ag-interactive))
+  (let ((type (ag-type)))
     (if type
-        (apply 'ack-run directory regexp (append type (list pattern)))
-      (ack pattern regexp directory))))
+        (apply 'ag-run directory regexp (append type (list pattern)))
+      (ag pattern regexp directory))))
 
 ;;;###autoload
-(defun ack (pattern &optional regexp directory)
-  "Run ack.
+(defun ag (pattern &optional regexp directory)
+  "Run ag.
 PATTERN is interpreted as a regular expression, iff REGEXP is non-nil.  If
-called interactively, the value of REGEXP is determined by `ack-search-regexp'.
+called interactively, the value of REGEXP is determined by `ag-search-regexp'.
 A prefix arg toggles that value.
 DIRECTORY is the root directory.  If called interactively, it is determined by
-`ack-project-root-file-patterns'.  The user is only prompted, if
-`ack-prompt-for-directory' is set."
-  (interactive (ack-interactive))
-  (ack-run directory regexp pattern))
+`ag-project-root-file-patterns'.  The user is only prompted, if
+`ag-prompt-for-directory' is set."
+  (interactive (ag-interactive))
+  (ag-run directory regexp pattern))
 
-(defun ack-read-file (prompt choices)
+(defun ag-read-file (prompt choices)
   (if ido-mode
       (ido-completing-read prompt choices nil t)
     (require 'iswitchb)
@@ -521,40 +522,40 @@ DIRECTORY is the root directory.  If called interactively, it is determined by
         (iswitchb-read-buffer prompt nil t)))))
 
 ;;;###autoload
-(defun ack-find-same-file (&optional directory)
-  "Prompt to find a file found by ack in DIRECTORY."
-  (interactive (list (ack-read-dir)))
+(defun ag-find-same-file (&optional directory)
+  "Prompt to find a file found by ag in DIRECTORY."
+  (interactive (list (ag-read-dir)))
   (find-file (expand-file-name
-              (ack-read-file "Find file: "
-                             (apply 'ack-list-files directory (ack-type)))
+              (ag-read-file "Find file: "
+                             (apply 'ag-list-files directory (ag-type)))
               directory)))
 
 ;;;###autoload
-(defun ack-find-file (&optional directory)
-  "Prompt to find a file found by ack in DIRECTORY."
-  (interactive (list (ack-read-dir)))
-  (find-file (expand-file-name (ack-read-file "Find file: "
-                                              (ack-list-files directory))
+(defun ag-find-file (&optional directory)
+  "Prompt to find a file found by ag in DIRECTORY."
+  (interactive (list (ag-read-dir)))
+  (find-file (expand-file-name (ag-read-file "Find file: "
+                                              (ag-list-files directory))
                                directory)))
 
 ;;; run again ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(defun ack-again ()
-  "Run the last ack search in the same directory."
+(defun ag-again ()
+  "Run the last ag search in the same directory."
   (interactive)
-  (if ack-buffer--rerun-args
-      (let ((ack-buffer-name (ack--again-buffer-name)))
-        (apply 'ack-run ack-buffer--rerun-args))
-    (call-interactively 'ack)))
+  (if ag-buffer--rerun-args
+      (let ((ag-buffer-name (ag--again-buffer-name)))
+        (apply 'ag-run ag-buffer--rerun-args))
+    (call-interactively 'ag)))
 
-(defun ack--again-buffer-name ()
-  (if (local-variable-p 'ack-buffer--rerun-args)
+(defun ag--again-buffer-name ()
+  (if (local-variable-p 'ag-buffer--rerun-args)
       (buffer-name)
-    ack-buffer-name))
+    ag-buffer-name))
 
 ;;; text utilities ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(defun ack-visible-distance (beg end)
+(defun ag-visible-distance (beg end)
   "Determine the number of visible characters between BEG and END."
   (let ((offset 0)
         next)
@@ -568,13 +569,13 @@ DIRECTORY is the root directory.  If called interactively, it is determined by
         (setq beg nil)))
     offset))
 
-(defun ack-previous-property-value (property pos)
+(defun ag-previous-property-value (property pos)
   "Find the value of PROPERTY at or somewhere before POS."
   (or (get-text-property pos property)
       (when (setq pos (previous-single-property-change pos property))
         (get-text-property (1- pos) property))))
 
-(defun ack-property-beg (pos property)
+(defun ag-property-beg (pos property)
   "Move to the first char of consecutive sequence with PROPERTY set."
   (when (get-text-property pos property)
     (if (or (eq pos (point-min))
@@ -582,7 +583,7 @@ DIRECTORY is the root directory.  If called interactively, it is determined by
         pos
       (previous-single-property-change pos property))))
 
-(defun ack-property-end (pos property)
+(defun ag-property-end (pos property)
   "Move to the last char of consecutive sequence with PROPERTY set."
   (when (get-text-property pos property)
     (if (or (eq pos (point-max))
@@ -592,10 +593,10 @@ DIRECTORY is the root directory.  If called interactively, it is determined by
 
 ;;; next-error ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(defvar ack-error-pos nil)
-(make-variable-buffer-local 'ack-error-pos)
+(defvar ag-error-pos nil)
+(make-variable-buffer-local 'ag-error-pos)
 
-(defun ack-next-marker (pos arg marker marker-name)
+(defun ag-next-marker (pos arg marker marker-name)
   (setq arg (* 2 arg))
   (unless (get-text-property pos marker)
     (setq arg (1- arg)))
@@ -607,7 +608,7 @@ DIRECTORY is the root directory.  If called interactively, it is determined by
   (goto-char pos)
   pos)
 
-(defun ack-previous-marker (pos arg marker marker-name)
+(defun ag-previous-marker (pos arg marker marker-name)
   (assert (> arg 0))
   (dotimes (i (* 2 arg))
     (setq pos (previous-single-property-change pos marker))
@@ -616,40 +617,40 @@ DIRECTORY is the root directory.  If called interactively, it is determined by
   (goto-char pos)
   pos)
 
-(defun ack-next-match (pos arg)
-  "Move to the next match in the *ack* buffer."
+(defun ag-next-match (pos arg)
+  "Move to the next match in the *ag* buffer."
   (interactive "d\np")
-  (ack-next-marker pos arg 'ack-match "match"))
+  (ag-next-marker pos arg 'ag-match "match"))
 
-(defun ack-previous-match (pos arg)
-  "Move to the previous match in the *ack* buffer."
+(defun ag-previous-match (pos arg)
+  "Move to the previous match in the *ag* buffer."
   (interactive "d\np")
-  (ack-previous-marker pos arg 'ack-match "match"))
+  (ag-previous-marker pos arg 'ag-match "match"))
 
-(defun ack-next-file (pos arg)
-  "Move to the next file in the *ack* buffer."
+(defun ag-next-file (pos arg)
+  "Move to the next file in the *ag* buffer."
   (interactive "d\np")
   ;; Workaround for problem at the begining of the buffer.
   (when (bobp) (incf arg))
-  (ack-next-marker pos arg 'ack-file "file"))
+  (ag-next-marker pos arg 'ag-file "file"))
 
-(defun ack-previous-file (pos arg)
-  "Move to the previous file in the *ack* buffer."
+(defun ag-previous-file (pos arg)
+  "Move to the previous file in the *ag* buffer."
   (interactive "d\np")
-  (ack-previous-marker pos arg 'ack-file "file"))
+  (ag-previous-marker pos arg 'ag-file "file"))
 
-(defun ack-next-error-function (arg reset)
-  (when (or reset (null ack-error-pos))
-    (setq ack-error-pos (point-min)))
-  (ack-find-match (if (<= arg 0)
-                      (ack-previous-match ack-error-pos (- arg))
-                    (ack-next-match ack-error-pos arg))))
+(defun ag-next-error-function (arg reset)
+  (when (or reset (null ag-error-pos))
+    (setq ag-error-pos (point-min)))
+  (ag-find-match (if (<= arg 0)
+                      (ag-previous-match ag-error-pos (- arg))
+                    (ag-next-match ag-error-pos arg))))
 
-(defun ack-create-marker (pos end &optional force)
-  (let ((file (ack-previous-property-value 'ack-file pos))
-        (line (ack-previous-property-value 'ack-line pos))
-        (offset (ack-visible-distance
-                 (or (previous-single-property-change pos 'ack-line) 0)
+(defun ag-create-marker (pos end &optional force)
+  (let ((file (ag-previous-property-value 'ag-file pos))
+        (line (ag-previous-property-value 'ag-line pos))
+        (offset (ag-visible-distance
+                 (or (previous-single-property-change pos 'ag-line) 0)
                  pos))
         buffer)
     (if force
@@ -664,28 +665,28 @@ DIRECTORY is the root directory.  If called interactively, it is determined by
     (when buffer
       (with-current-buffer buffer
         (save-excursion
-          (ack--move-to-line (string-to-number line))
+          (ag--move-to-line (string-to-number line))
           (copy-marker (+ (point) offset -1)))))))
 
-(defun ack--move-to-line (line)
+(defun ag--move-to-line (line)
   (save-restriction
     (widen)
     (goto-char (point-min))
     (forward-line (1- line))))
 
-(defun ack-find-match (pos)
+(defun ag-find-match (pos)
   "Jump to the match at POS."
   (interactive (list (let ((posn (event-start last-input-event)))
                        (set-buffer (window-buffer (posn-window posn)))
                        (posn-point posn))))
-  (when (setq pos (ack-property-beg pos 'ack-match))
-    (let ((marker (get-text-property pos 'ack-marker))
+  (when (setq pos (ag-property-beg pos 'ag-match))
+    (let ((marker (get-text-property pos 'ag-marker))
           (msg (copy-marker pos))
-          (msg-end (ack-property-end pos 'ack-match))
-          (compilation-context-lines ack-context)
+          (msg-end (ag-property-end pos 'ag-match))
+          (compilation-context-lines ag-context)
           (inhibit-read-only t)
           (end (make-marker)))
-      (setq ack-error-pos pos)
+      (setq ag-error-pos pos)
 
       (let ((bol (save-excursion (goto-char pos) (point-at-bol))))
         (if overlay-arrow-position
@@ -693,71 +694,71 @@ DIRECTORY is the root directory.  If called interactively, it is determined by
           (setq overlay-arrow-position (copy-marker bol))))
 
       (unless (and marker (marker-buffer marker))
-        (setq marker (ack-create-marker msg msg-end t))
-        (add-text-properties msg msg-end (list 'ack-marker marker)))
-      (set-marker end (+ marker (ack-visible-distance msg msg-end))
+        (setq marker (ag-create-marker msg msg-end t))
+        (add-text-properties msg msg-end (list 'ag-marker marker)))
+      (set-marker end (+ marker (ag-visible-distance msg msg-end))
                   (marker-buffer marker))
       (compilation-goto-locus msg marker end)
       (set-marker msg nil)
       (set-marker end nil))))
 
-;;; ack-mode ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;; ag-mode ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(defvar ack-mode-map
+(defvar ag-mode-map
   (let ((keymap (make-sparse-keymap)))
-    (define-key keymap [mouse-2] 'ack-find-match)
-    (define-key keymap "\C-m" 'ack-find-match)
-    (define-key keymap "n" 'ack-next-match)
-    (define-key keymap "p" 'ack-previous-match)
-    (define-key keymap "\M-n" 'ack-next-file)
-    (define-key keymap "\M-p" 'ack-previous-file)
-    (define-key keymap "g" 'ack-again)
-    (define-key keymap "r" 'ack-again)
+    (define-key keymap [mouse-2] 'ag-find-match)
+    (define-key keymap "\C-m" 'ag-find-match)
+    (define-key keymap "n" 'ag-next-match)
+    (define-key keymap "p" 'ag-previous-match)
+    (define-key keymap "\M-n" 'ag-next-file)
+    (define-key keymap "\M-p" 'ag-previous-file)
+    (define-key keymap "g" 'ag-again)
+    (define-key keymap "r" 'ag-again)
     keymap))
 
-(defconst ack-font-lock-regexp-color-fg-begin "\\(\33\\[1;..?m\\)")
-(defconst ack-font-lock-regexp-color-bg-begin "\\(\33\\[30;..m\\)")
-(defconst ack-font-lock-regexp-color-end "\\(\33\\[0m\\)")
+(defconst ag-font-lock-regexp-color-fg-begin "\\(\33\\[1;..?m\\)")
+(defconst ag-font-lock-regexp-color-bg-begin "\\(\33\\[30;..m\\)")
+(defconst ag-font-lock-regexp-color-end "\\(\33\\[0m\\)")
 
-(defconst ack-font-lock-regexp-line
-  (concat "\\(" ack-font-lock-regexp-color-fg-begin "?\\)"
+(defconst ag-font-lock-regexp-line
+  (concat "\\(" ag-font-lock-regexp-color-fg-begin "?\\)"
           "\\([0-9]+\\)"
-          "\\(" ack-font-lock-regexp-color-end "?\\)"
+          "\\(" ag-font-lock-regexp-color-end "?\\)"
           "[:-]")
-  "Matches the line output from ack (with or without color).
-Color is used starting ack 1.94.")
+  "Matches the line output from ag (with or without color).
+Color is used starting ag 1.94.")
 
-(defvar ack-font-lock-keywords
-  `(("^--" . 'ack-separator)
+(defvar ag-font-lock-keywords
+  `(("^--" . 'ag-separator)
     ;; file and line
-    (,(concat "^" ack-font-lock-regexp-color-fg-begin
-              "\\(.*?\\)" ack-font-lock-regexp-color-end
-              "[:-]" ack-font-lock-regexp-line)
+    (,(concat "^" ag-font-lock-regexp-color-fg-begin
+              "\\(.*?\\)" ag-font-lock-regexp-color-end
+              "[:-]" ag-font-lock-regexp-line)
      (1 '(face nil invisible t))
-     (2 `(face ack-file ack-file ,(match-string-no-properties 2)))
+     (2 `(face ag-file ag-file ,(match-string-no-properties 2)))
      (3 '(face nil invisible t))
      (4 '(face nil invisible t))
-     (6 `(face ack-line ack-line ,(match-string-no-properties 6)))
+     (6 `(face ag-line ag-line ,(match-string-no-properties 6)))
      (7 '(face nil invisible t) nil optional))
     ;; lines
-    (,(concat "^" ack-font-lock-regexp-line)
+    (,(concat "^" ag-font-lock-regexp-line)
      (1 '(face nil invisible t))
-     (3 `(face ack-line ack-line ,(match-string-no-properties 3)))
+     (3 `(face ag-line ag-line ,(match-string-no-properties 3)))
      (5 '(face nil invisible t) nil optional))
     ;; file
-    (,(concat "^" ack-font-lock-regexp-color-fg-begin
-              "\\(.*?\\)" ack-font-lock-regexp-color-end "$")
+    (,(concat "^" ag-font-lock-regexp-color-fg-begin
+              "\\(.*?\\)" ag-font-lock-regexp-color-end "$")
      (1 '(face nil invisible t))
-     (2 `(face ack-file ack-file ,(match-string-no-properties 2)))
+     (2 `(face ag-file ag-file ,(match-string-no-properties 2)))
      (3 '(face nil invisible t)))
     ;; matches
-    (,(concat ack-font-lock-regexp-color-bg-begin
+    (,(concat ag-font-lock-regexp-color-bg-begin
               "\\(.*?\\)"
-              ack-font-lock-regexp-color-end)
+              ag-font-lock-regexp-color-end)
      (1 '(face nil invisible t))
-     (0 `(face ack-match
-          ack-marker ,(ack-create-marker (match-beginning 2) (match-end 2))
-          ack-match t
+     (0 `(face ag-match
+          ag-marker ,(ag-create-marker (match-beginning 2) (match-end 2))
+          ag-match t
           mouse-face highlight
           follow-link t))
      (3 '(face nil invisible t)))
@@ -765,21 +766,21 @@ Color is used starting ack 1.94.")
     ("\\(\33\\[\\(0m\\|K\\)\\)"
      (0 '(face nil invisible t)))))
 
-(define-derived-mode ack-mode nil "ack"
-  "Major mode for ack output."
+(define-derived-mode ag-mode nil "ag"
+  "Major mode for ag output."
   font-lock-defaults
   (setq font-lock-defaults
-        (list ack-font-lock-keywords t))
+        (list ag-font-lock-keywords t))
   (set (make-local-variable 'font-lock-extra-managed-props)
-       '(mouse-face follow-link ack-line ack-file ack-marker ack-match))
+       '(mouse-face follow-link ag-line ag-file ag-marker ag-match))
   (make-local-variable 'overlay-arrow-position)
   (set (make-local-variable 'overlay-arrow-string) "")
 
   (font-lock-fontify-buffer)
-  (use-local-map ack-mode-map)
+  (use-local-map ag-mode-map)
 
-  (setq next-error-function 'ack-next-error-function
-        ack-error-pos nil))
+  (setq next-error-function 'ag-next-error-function
+        ag-error-pos nil))
 
-(provide 'full-ack)
-;;; full-ack.el ends here
+(provide 'full-ag)
+;;; full-ag.el ends here
